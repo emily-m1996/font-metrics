@@ -1,0 +1,13 @@
+[package]
+name = "font-metrics"
+version = "0.1.0"
+edition = "2021"
+authors = ["emily-m1996"]
+description = "Reads ascent, descent, and other line-height metrics out of TrueType and OpenType font files"
+license = "MIT"
+
+[[bin]]
+name = "fontmetrics"
+path = "src/main.rs"
+
+[dependencies]
