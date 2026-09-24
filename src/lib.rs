@@ -7,7 +7,7 @@
 
 use std::fmt;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum ParseError {
     TooShort,
     NotASfntFile,
