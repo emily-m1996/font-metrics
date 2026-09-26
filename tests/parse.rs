@@ -164,12 +164,85 @@ fn garbage_sfnt_version_is_rejected() {
     assert_eq!(font_metrics::parse(&font), Err(ParseError::NotASfntFile));
 }
 
+/// Assembles a minimal TrueType collection: a `ttcf` header whose offset
+/// table points at each of the given already-built sfnt fonts, which are
+/// appended back to back after the header.
+fn build_collection(fonts: &[Vec<u8>]) -> Vec<u8> {
+    let num_fonts = fonts.len() as u32;
+    let mut out = Vec::new();
+
+    out.extend_from_slice(b"ttcf");
+    out.extend_from_slice(&0x0001_0000u32.to_be_bytes()); // version 1.0
+    out.extend_from_slice(&num_fonts.to_be_bytes());
+
+    let mut offset = 12 + fonts.len() * 4;
+    for font in fonts {
+        out.extend_from_slice(&(offset as u32).to_be_bytes());
+        offset += font.len();
+    }
+    for font in fonts {
+        out.extend_from_slice(font);
+    }
+    out
+}
+
 #[test]
-fn true_type_collections_are_reported_as_unsupported() {
-    let mut font = build_font(&[]);
-    font[0..4].copy_from_slice(b"ttcf");
+fn font_count_is_one_for_a_plain_sfnt_file() {
+    let font = build_font(&[(b"head", &head_table(2048))]);
+    assert_eq!(font_metrics::font_count(&font), Ok(1));
+}
+
+#[test]
+fn parses_first_font_in_a_collection_by_default() {
+    let first = build_font(&[
+        (b"head", &head_table(1000)),
+        (b"hhea", &hhea_table(950, -250, 0)),
+    ]);
+    let second = build_font(&[
+        (b"head", &head_table(2048)),
+        (b"hhea", &hhea_table(1900, -500, 100)),
+    ]);
+    let collection = build_collection(&[first, second]);
+
+    assert_eq!(font_metrics::font_count(&collection), Ok(2));
+    let metrics = font_metrics::parse(&collection).expect("valid collection");
+    assert_eq!(metrics.units_per_em, 1000);
+    assert_eq!(metrics.ascender, 950);
+}
+
+#[test]
+fn parse_at_selects_a_font_by_index_in_a_collection() {
+    let first = build_font(&[
+        (b"head", &head_table(1000)),
+        (b"hhea", &hhea_table(950, -250, 0)),
+    ]);
+    let second = build_font(&[
+        (b"head", &head_table(2048)),
+        (b"hhea", &hhea_table(1900, -500, 100)),
+    ]);
+    let collection = build_collection(&[first, second]);
+
+    let metrics = font_metrics::parse_at(&collection, 1).expect("valid collection");
+    assert_eq!(metrics.units_per_em, 2048);
+    assert_eq!(metrics.ascender, 1900);
+}
+
+#[test]
+fn parse_at_out_of_range_index_in_a_collection_is_an_error() {
+    let only = build_font(&[(b"head", &head_table(1000)), (b"hhea", &hhea_table(950, -250, 0))]);
+    let collection = build_collection(&[only]);
+
     assert_eq!(
-        font_metrics::parse(&font),
-        Err(ParseError::UnsupportedCollection)
+        font_metrics::parse_at(&collection, 1),
+        Err(ParseError::FontIndexOutOfRange)
+    );
+}
+
+#[test]
+fn parse_at_nonzero_index_on_a_plain_sfnt_file_is_an_error() {
+    let font = build_font(&[(b"head", &head_table(1000)), (b"hhea", &hhea_table(950, -250, 0))]);
+    assert_eq!(
+        font_metrics::parse_at(&font, 1),
+        Err(ParseError::FontIndexOutOfRange)
     );
 }

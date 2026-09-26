@@ -31,6 +31,10 @@ Fields that come from `hhea` are always present; fields that come from the
 optional `OS/2` table are `Option`s, since not every font has one (or has
 an old enough version to be missing the newer fields).
 
+A TrueType collection (`.ttc`) bundles several fonts in one file. `parse`
+reads the first one; `parse_at(&data, index)` reads a specific one, and
+`font_count(&data)` reports how many there are (1 for a plain `.ttf`/`.otf`).
+
 ## CLI
 
 ```
@@ -53,7 +57,15 @@ OS/2 x-height        1096
 Reads the sfnt table directory and pulls values out of `head`, `hhea`, and
 `OS/2`. Works on both TrueType (`glyf`-based) and CFF-flavored OpenType
 (`OTTO`) files, since the metrics tables are laid out the same way in
-both. TrueType collections (`.ttc`) aren't handled yet.
+both, and on TrueType collections (`.ttc`), which bundle several of these
+per file behind a shared header.
+
+```
+$ cargo run --bin fontmetrics -- NotoSansCJK.ttc 1
+font 1 of 4 in this collection
+units per em         1000
+...
+```
 
 ## License
 

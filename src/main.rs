@@ -8,9 +8,19 @@ fn main() -> ExitCode {
     let path = match args.next() {
         Some(p) => p,
         None => {
-            eprintln!("usage: fontmetrics <path-to-font-file>");
+            eprintln!("usage: fontmetrics <path-to-font-file> [font-index]");
             return ExitCode::FAILURE;
         }
+    };
+    let font_index: u32 = match args.next() {
+        Some(raw) => match raw.parse() {
+            Ok(i) => i,
+            Err(_) => {
+                eprintln!("font-index must be a non-negative integer, got {raw}");
+                return ExitCode::FAILURE;
+            }
+        },
+        None => 0,
     };
 
     let data = match fs::read(&path) {
@@ -21,7 +31,13 @@ fn main() -> ExitCode {
         }
     };
 
-    let metrics = match font_metrics::parse(&data) {
+    if let Ok(count) = font_metrics::font_count(&data) {
+        if count > 1 {
+            println!("font {font_index} of {count} in this collection");
+        }
+    }
+
+    let metrics = match font_metrics::parse_at(&data, font_index) {
         Ok(m) => m,
         Err(e) => {
             eprintln!("{path}: {e}");
