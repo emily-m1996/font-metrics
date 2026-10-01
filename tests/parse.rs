@@ -164,6 +164,38 @@ fn garbage_sfnt_version_is_rejected() {
     assert_eq!(font_metrics::parse(&font), Err(ParseError::NotASfntFile));
 }
 
+#[test]
+fn to_json_uses_null_for_missing_os2_fields() {
+    let font = build_font(&[
+        (b"head", &head_table(2048)),
+        (b"hhea", &hhea_table(1900, -500, 100)),
+    ]);
+    let metrics = font_metrics::parse(&font).expect("valid synthetic font");
+    assert_eq!(
+        metrics.to_json(),
+        "{\"units_per_em\":2048,\"hhea_ascender\":1900,\"hhea_descender\":-500,\
+         \"hhea_line_gap\":100,\"typo_ascender\":null,\"typo_descender\":null,\
+         \"typo_line_gap\":null,\"win_ascent\":null,\"win_descent\":null,\
+         \"cap_height\":null,\"x_height\":null}"
+    );
+}
+
+#[test]
+fn to_json_includes_os2_values_when_present() {
+    let font = build_font(&[
+        (b"head", &head_table(1000)),
+        (b"hhea", &hhea_table(900, -200, 0)),
+        (b"OS/2", &os2_table(4, 800, -200, 90, 950, 250, 500, 700)),
+    ]);
+    let json = font_metrics::parse(&font).expect("valid synthetic font").to_json();
+    assert!(json.contains("\"typo_ascender\":800"));
+    assert!(json.contains("\"typo_line_gap\":90"));
+    assert!(json.contains("\"win_descent\":250"));
+    assert!(json.contains("\"cap_height\":700"));
+    assert!(json.contains("\"x_height\":500"));
+    assert!(!json.contains("null"));
+}
+
 /// Assembles a minimal TrueType collection: a `ttcf` header whose offset
 /// table points at each of the given already-built sfnt fonts, which are
 /// appended back to back after the header.

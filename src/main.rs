@@ -3,12 +3,24 @@ use std::fmt::Display;
 use std::fs;
 use std::process::ExitCode;
 
+const USAGE: &str = "usage: fontmetrics [--json] <path-to-font-file> [font-index]";
+
 fn main() -> ExitCode {
-    let mut args = env::args().skip(1);
+    let mut json = false;
+    let mut positional = Vec::new();
+    for arg in env::args().skip(1) {
+        if arg == "--json" {
+            json = true;
+        } else {
+            positional.push(arg);
+        }
+    }
+    let mut args = positional.into_iter();
+
     let path = match args.next() {
         Some(p) => p,
         None => {
-            eprintln!("usage: fontmetrics <path-to-font-file> [font-index]");
+            eprintln!("{USAGE}");
             return ExitCode::FAILURE;
         }
     };
@@ -31,9 +43,15 @@ fn main() -> ExitCode {
         }
     };
 
+    // In JSON mode stdout must stay a single parseable object, so the
+    // collection note goes to stderr instead.
     if let Ok(count) = font_metrics::font_count(&data) {
         if count > 1 {
-            println!("font {font_index} of {count} in this collection");
+            if json {
+                eprintln!("font {font_index} of {count} in this collection");
+            } else {
+                println!("font {font_index} of {count} in this collection");
+            }
         }
     }
 
@@ -44,6 +62,11 @@ fn main() -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
+
+    if json {
+        println!("{}", metrics.to_json());
+        return ExitCode::SUCCESS;
+    }
 
     println!("units per em         {}", metrics.units_per_em);
     println!("hhea ascender        {}", metrics.ascender);

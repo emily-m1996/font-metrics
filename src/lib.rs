@@ -54,6 +54,35 @@ pub struct FontMetrics {
     pub x_height: Option<i16>,
 }
 
+impl FontMetrics {
+    /// Renders the metrics as a single-line JSON object. Fields the font
+    /// doesn't carry are `null` rather than omitted, so consumers can tell
+    /// "absent" apart from a typo in the key. Every value is an integer, so
+    /// no string escaping is needed.
+    pub fn to_json(&self) -> String {
+        fn field<T: fmt::Display>(name: &str, value: Option<T>) -> String {
+            match value {
+                Some(v) => format!("\"{name}\":{v}"),
+                None => format!("\"{name}\":null"),
+            }
+        }
+        let fields = [
+            field("units_per_em", Some(self.units_per_em)),
+            field("hhea_ascender", Some(self.ascender)),
+            field("hhea_descender", Some(self.descender)),
+            field("hhea_line_gap", Some(self.line_gap)),
+            field("typo_ascender", self.typo_ascender),
+            field("typo_descender", self.typo_descender),
+            field("typo_line_gap", self.typo_line_gap),
+            field("win_ascent", self.win_ascent),
+            field("win_descent", self.win_descent),
+            field("cap_height", self.cap_height),
+            field("x_height", self.x_height),
+        ];
+        format!("{{{}}}", fields.join(","))
+    }
+}
+
 fn u16_at(data: &[u8], offset: usize) -> Option<u16> {
     let bytes = data.get(offset..offset + 2)?;
     Some(u16::from_be_bytes([bytes[0], bytes[1]]))

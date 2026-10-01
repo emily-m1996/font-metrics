@@ -52,6 +52,15 @@ OS/2 cap height      1466
 OS/2 x-height        1096
 ```
 
+Pass `--json` (anywhere on the command line) to get one JSON object on
+stdout instead. Fields missing from the font are `null`. The same output is
+available from the library as `FontMetrics::to_json`.
+
+```
+$ cargo run --bin fontmetrics -- --json Inter-Regular.ttf
+{"units_per_em":2048,"hhea_ascender":2728,"hhea_descender":-680,...}
+```
+
 ## What's supported
 
 Reads the sfnt table directory and pulls values out of `head`, `hhea`, and
